@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MiMoAuth Daemon
+Comment=MiMoAuth authorization daemon (non-systemd fallback)
+Exec=@BIN@/mimoauthd
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

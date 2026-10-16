@@ -1,0 +1,10 @@
+# MiMoAuth sudo integration (pam_exec wrapper).
+#
+# Install: insert the line below ABOVE the first "auth include ..." line of
+# /etc/pam.d/sudo (a backup is created by scripts/install.sh):
+#
+#   auth sufficient pam_exec.so /home/YOUR_USER/.local/bin/mimoauthctl pam-hook
+#
+# Semantics: "sufficient" = MiMoAuth success skips the stock password line;
+# any failure (cancel/timeout/no tty) falls through to the regular stack, so
+# sudo keeps working even if MiMoAuth is absent.  Remove the line to uninstall.

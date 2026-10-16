@@ -1,0 +1,50 @@
+# Maintainer: MiMo Assistant <mimo@users.noreply.github.com>
+pkgname=mimoauth
+pkgver=0.1.0
+pkgdesc="polkit-style authorization framework for AI desktops (daemon + GTK4 agent + CLI)"
+arch=('x86_64')
+url="https://github.com/ZhongZuhuang/MiMoAuth"
+license=('MIT')
+depends=('gtk4' 'libadwaita' 'pam' 'fprintd')
+makedepends=('cargo')
+optdepends=(
+  'polkit: not required; pkexec compatibility only'
+)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/ZhongZuhuang/MiMoAuth/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')  # update with: makepkg -g
+
+prepare() {
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --manifest-path "$srcdir/$pkgname-$pkgver/Cargo.toml" 2>/dev/null || \
+    cargo fetch --manifest-path "$srcdir/$pkgname-$pkgver/Cargo.toml"
+}
+
+build() {
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --manifest-path "$srcdir/$pkgname-$pkgver/Cargo.toml" 2>/dev/null || \
+    cargo build --release --manifest-path "$srcdir/$pkgname-$pkgver/Cargo.toml"
+}
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+  install -Dm755 target/release/mimoauthd    "$pkgdir/usr/bin/mimoauthd"
+  install -Dm755 target/release/mimoauthctl  "$pkgdir/usr/bin/mimoauthctl"
+  install -Dm755 target/release/mimoauth-gui "$pkgdir/usr/bin/mimoauth-gui"
+
+  install -Dm644 data/systemd/mimoauthd.service \
+    "$pkgdir/usr/lib/systemd/user/mimoauthd.service"
+
+  install -Dm644 data/pam.d/mimoauth \
+    "$pkgdir/etc/pam.d/mimoauth"
+
+  # sudo integration is opt-in: see README ("sudo 免密"). Enabling:
+  #   sed -i '/^auth[[:space:]]\+include/a auth sufficient pam_exec.so /usr/bin/mimoauthctl pam-hook' /etc/pam.d/sudo
+  install -Dm644 data/pam.d/sudo-mimoauth \
+    "$pkgdir/usr/share/doc/$pkgname/sudo-mimoauth.howto"
+
+  install -Dm644 skills/mimoauth/SKILL.md \
+    "$pkgdir/usr/share/$pkgname/skills/mimoauth/SKILL.md"
+
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
