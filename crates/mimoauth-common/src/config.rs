@@ -13,6 +13,8 @@ pub struct Config {
     pub keep_timeout_secs: u64,
     /// How long the auth dialog waits before returning `timeout` (seconds).
     pub prompt_timeout_secs: u64,
+    /// Seconds to wait for a fingerprint before falling back to password.
+    pub fingerprint_timeout_secs: u64,
     /// Path to the GUI agent binary.
     pub gui_path: String,
     /// Emit debug logs.
@@ -25,6 +27,7 @@ impl Default for Config {
             pam_service: "mimoauth".to_string(),
             keep_timeout_secs: 300,
             prompt_timeout_secs: 60,
+            fingerprint_timeout_secs: 10,
             gui_path: dirs::home_dir()
                 .map(|h| h.join(".local/bin/mimoauth-gui").display().to_string())
                 .unwrap_or_else(|| "mimoauth-gui".to_string()),

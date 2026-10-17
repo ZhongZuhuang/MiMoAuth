@@ -74,7 +74,7 @@ fn strings() -> Strings {
             cmd_cap: "命令".into(),
             fingerprint: "指纹".into(),
             fp_prompt: "请按指纹传感器".into(),
-            fp_prompt_sub: "10 秒内未识别将切换为密码输入".into(),
+            fp_prompt_sub: "{s} 秒内未识别将切换为密码输入".into(),
             fp_timeout: "指纹未识别，已切换为密码输入".into(),
             fp_touch: "请触摸指纹传感器…".into(),
             fp_retry: "指纹未识别，请再试一次".into(),
@@ -101,7 +101,7 @@ fn strings() -> Strings {
             cmd_cap: "Command".into(),
             fingerprint: "Fingerprint".into(),
             fp_prompt: "Touch the fingerprint sensor".into(),
-            fp_prompt_sub: "Switching to password input in 10s".into(),
+            fp_prompt_sub: "Switching to password input in {s}s".into(),
             fp_timeout: "Not recognized — password input enabled".into(),
             fp_touch: "Touch the fingerprint sensor…".into(),
             fp_retry: "Not recognized — try again".into(),
@@ -237,7 +237,11 @@ fn probe_fingerprint(tx: async_channel::Sender<FpEvent>) {
 }
 
 /// Async fprintd verification: 5s total window, then fall back to password.
-fn fingerprint_worker(auth_id: String, tx: async_channel::Sender<FpEvent>) {
+fn fingerprint_worker(
+    auth_id: String,
+    tx: async_channel::Sender<FpEvent>,
+    fp_timeout_secs: u64,
+) {
     std::thread::spawn(move || {
         let rt = match tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -251,7 +255,7 @@ fn fingerprint_worker(auth_id: String, tx: async_channel::Sender<FpEvent>) {
             }
         };
         rt.block_on(async move {
-            if let Err(e) = run_fp_verify(&auth_id, &tx).await {
+            if let Err(e) = run_fp_verify(&auth_id, &tx, fp_timeout_secs).await {
                 eprintln!("fp-worker: {e}");
             }
         });
@@ -261,6 +265,7 @@ fn fingerprint_worker(auth_id: String, tx: async_channel::Sender<FpEvent>) {
 async fn run_fp_verify(
     auth_id: &str,
     tx: &async_channel::Sender<FpEvent>,
+    fp_timeout_secs: u64,
 ) -> Result<(), String> {
     use futures_util::StreamExt;
     use mimoauth_common::dbus::{Auth1Proxy, FprintDeviceProxy, FprintManagerProxy};
@@ -329,7 +334,7 @@ async fn run_fp_verify(
         None => None,
     };
 
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(fp_timeout_secs.max(1));
     loop {
         match tokio::time::timeout_at(deadline, stream.next()).await {
             // No match within 5s: stop cleanly and switch to password input.
@@ -419,6 +424,12 @@ fn build_window(
         .title(s.window_title.as_str())
         .build();
 
+    // Fingerprint→password fallback window is user-configurable
+    // (~/.config/mimoauth/config.toml → fingerprint_timeout_secs).
+    let fp_timeout_secs = mimoauth_common::config::Config::load()
+        .fingerprint_timeout_secs
+        .clamp(1, 120);
+
     let root = GtkBox::new(Orientation::Vertical, 12);
     root.set_margin_top(26);
     root.set_margin_bottom(20);
@@ -507,7 +518,9 @@ fn build_window(
     fp_label.add_css_class("heading");
     fp_label.set_halign(Align::Start);
     fp_text_col.append(&fp_label);
-    let fp_sub = Label::new(Some(s.fp_prompt_sub.as_str()));
+    let fp_sub = Label::new(Some(
+        &s.fp_prompt_sub.replace("{s}", &fp_timeout_secs.to_string()),
+    ));
     fp_sub.add_css_class("dim-label");
     fp_sub.add_css_class("caption");
     fp_sub.set_halign(Align::Start);
@@ -580,6 +593,7 @@ fn build_window(
     // Hint to compositors that this is a dialog (they may float it).
     win.set_modal(true);
 
+
     // --- countdown -------------------------------------------------------
     let remaining = Rc::new(RefCell::new(remaining_ms));
     let countdown_c = countdown.clone();
@@ -629,7 +643,7 @@ fn build_window(
                         fp_prompt.set_visible(true);
                         fp_label.set_text(&s.fp_prompt);
                         error_label.set_visible(false);
-                        fingerprint_worker(auth_id.clone(), fp_tx.clone());
+                        fingerprint_worker(auth_id.clone(), fp_tx.clone(), fp_timeout_secs);
                     }
                     FpEvent::Busy => fp_label.set_text(&s.fp_prompt),
                     FpEvent::Retry => fp_label.set_text(&s.fp_retry),
@@ -679,13 +693,14 @@ fn build_window(
         let fp_label_c = fp_label.clone();
         let error_label_c = error_label.clone();
         let s_c = s.clone();
+        let fp_timeout_secs_c = fp_timeout_secs;
         fp_button.connect_clicked(move |_| {
             fp_button_c.set_visible(false);
             entry_c.set_visible(false);
             error_label_c.set_visible(false);
             fp_prompt_c.set_visible(true);
             fp_label_c.set_text(&s_c.fp_touch);
-            fingerprint_worker(auth_id_c.clone(), fp_tx_c.clone());
+            fingerprint_worker(auth_id_c.clone(), fp_tx_c.clone(), fp_timeout_secs_c);
         });
     }
 

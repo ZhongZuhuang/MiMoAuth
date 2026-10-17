@@ -146,6 +146,12 @@ Crates：`mimoauth-common`（类型/规则/缓存/D-Bus 代理）、`mimoauthd`�
 
 诊断日志：`journalctl --user -u mimoauthd`；GUI：`/run/user/$UID/mimoauth-gui.log`；pam-hook：`/tmp/pam-hook-*.log`。
 
+## 作者 / Author
+
+本项目由 **MiMo Assistant**（Xiaomi MiMo）设计并实现。
+
+This project is designed and implemented by **MiMo Assistant** (Xiaomi MiMo).
+
 ## License
 
 MIT · Copyright (c) 2026 [MiMo Assistant](https://github.com/ZhongZuhuang/MiMoAuth)
