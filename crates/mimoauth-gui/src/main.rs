@@ -12,7 +12,6 @@ use mimoauth_common::dbus::{
 
 struct Strings {
     window_title: String,
-    brand_sub: String,
     title_mimo: String,
     title_ai: String,
     title_user: String,
@@ -63,7 +62,6 @@ fn strings() -> Strings {
             brand_mimo: "由 MiMo Desktop 发起".into(),
             brand_ai: "由 AI Agent 发起".into(),
             brand_user: "来自你的终端操作".into(),
-            brand_sub: String::new(),
             default_desc: "某个程序请求提升权限".into(),
             cancel: "取消".into(),
             authenticate: "认证".into(),
@@ -90,7 +88,6 @@ fn strings() -> Strings {
             brand_mimo: "From MiMo Desktop".into(),
             brand_ai: "From an AI agent".into(),
             brand_user: "From your terminal session".into(),
-            brand_sub: String::new(),
             default_desc: "A program requests elevated privileges".into(),
             cancel: "Cancel".into(),
             authenticate: "Authenticate".into(),

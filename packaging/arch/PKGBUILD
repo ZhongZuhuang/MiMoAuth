@@ -31,6 +31,7 @@ package() {
   install -Dm755 target/release/mimoauthd    "$pkgdir/usr/bin/mimoauthd"
   install -Dm755 target/release/mimoauthctl  "$pkgdir/usr/bin/mimoauthctl"
   install -Dm755 target/release/mimoauth-gui "$pkgdir/usr/bin/mimoauth-gui"
+  install -Dm755 target/release/mimoauth-tui "$pkgdir/usr/bin/mimoauth-tui"
 
   install -Dm644 data/systemd/mimoauthd.service \
     "$pkgdir/usr/lib/systemd/user/mimoauthd.service"

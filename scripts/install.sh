@@ -68,6 +68,7 @@ mkdir -p "$BIN_DIR"
 install -m 0755 "$ROOT/target/release/mimoauthd"    "$BIN_DIR/mimoauthd"
 install -m 0755 "$ROOT/target/release/mimoauthctl"  "$BIN_DIR/mimoauthctl"
 install -m 0755 "$ROOT/target/release/mimoauth-gui" "$BIN_DIR/mimoauth-gui"
+install -m 0755 "$ROOT/target/release/mimoauth-tui" "$BIN_DIR/mimoauth-tui"
 
 log "installing default config (only when missing)"
 mkdir -p "$CFG_DIR"

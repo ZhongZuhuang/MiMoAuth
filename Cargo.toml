@@ -5,6 +5,7 @@ members = [
     "crates/mimoauthd",
     "crates/mimoauthctl",
     "crates/mimoauth-gui",
+    "crates/mimoauth-tui",
 ]
 
 [workspace.package]

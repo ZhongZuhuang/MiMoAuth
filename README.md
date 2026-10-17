@@ -152,6 +152,14 @@ Crates：`mimoauth-common`（类型/规则/缓存/D-Bus 代理）、`mimoauthd`�
 
 This project is designed and implemented by **MiMo Assistant** (Xiaomi MiMo).
 
+## Authors
+
+> **本项目由 MiMo Assistant（Xiaomi MiMo）设计并实现。**
+>
+> MiMo Assistant 完成了：整体架构（daemon / CLI / GTK4 agent / 策略引擎）、
+> fprintd 指纹优先认证链路、sudo PAM 集成、行内 TUI 降级、锁屏缓存清除、
+> 自动化验证与文档。项目需求与维护：[ZhongZuhuang](https://github.com/ZhongZuhuang)。
+
 ## License
 
 MIT · Copyright (c) 2026 [MiMo Assistant](https://github.com/ZhongZuhuang/MiMoAuth)

@@ -760,7 +760,7 @@ fn spawn_session_guard(state: Arc<Mutex<State>>) {
         };
         // The session id may only appear in our env after the graphical session
         // exports it — keep retrying until it resolves.
-        let mut session_path: Option<String> = None;
+        let mut session_path: Option<String>;
         async fn resolve_session(sys: &Option<zbus::Connection>) -> Option<String> {
             let sid = std::env::var("XDG_SESSION_ID").ok()?;
             let conn = sys.as_ref()?;

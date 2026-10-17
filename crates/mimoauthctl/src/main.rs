@@ -151,6 +151,31 @@ fn inline_auth(
         other => return Ok((other.to_string(), auth_id)),
     }
 
+    // Prefer the fullscreen TUI agent (same directory) when available.
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let tui = dir.join("mimoauth-tui");
+            if tui.exists() {
+                match std::process::Command::new(&tui)
+                    .arg("--auth-id")
+                    .arg(&auth_id)
+                    .status()
+                {
+                    Ok(st) => {
+                        let (outcome, reason) = match st.code() {
+                            Some(0) => ("allow", ""),
+                            Some(1) => ("deny", "auth-failed"),
+                            Some(2) => ("timeout", "prompt-timeout"),
+                            _ => ("error", "tui-error"),
+                        };
+                        return Ok((outcome.into(), reason.into()));
+                    }
+                    Err(e) => eprintln!("mimoauth-tui unavailable ({e}), using inline prompt"),
+                }
+            }
+        }
+    }
+
     let zh = has_zh();
     let deadline = Instant::now() + Duration::from_millis(remaining);
     let title = if zh { "MiMo 请求身份验证" } else { "MiMo authentication request" };
