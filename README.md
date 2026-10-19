@@ -22,9 +22,13 @@
 
 ## 界面
 
-| MiMo 提权（指纹优先） | 用户 sudo 提权 |
+| MiMo 提权 · 指纹优先 | MiMo 提权 · 密码回落 |
 |:---:|:---:|
-| ![MiMo 提权弹窗](docs/screenshots/auth-mimo.png) | ![用户提权弹窗](docs/screenshots/auth-user.png) |
+| ![MiMo 指纹模式](docs/screenshots/auth-mimo-fingerprint.png) | ![MiMo 密码模式](docs/screenshots/auth-mimo-password.png) |
+
+| 用户 sudo 提权 · 指纹优先 | 用户 sudo 提权 · 密码回落 |
+|:---:|:---:|
+| ![用户指纹模式](docs/screenshots/auth-user-fingerprint.png) | ![用户密码模式](docs/screenshots/auth-user-password.png) |
 
 三类来源（MiMo / AI Agent / 用户终端）使用不同图标与文案；有指纹设备时默认进入指纹模式，`fingerprint_timeout_secs`（默认 10s）未识别后回落密码输入框。
 弹窗由**常驻认证代理**提供（`RegisterAgent` → `Show` 热路径），实测热弹窗延迟约 **12ms**（冷启动约 230ms）。
