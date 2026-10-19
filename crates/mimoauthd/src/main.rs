@@ -876,6 +876,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let conn = zbus::Connection::session().await?;
 
+    // Bring up the persistent auth agent (best-effort). Requests use its
+    // org.mimoauth.Agent1.Show hot path when registered, and fall back to
+    // spawning a fresh GUI otherwise.
+    {
+        let mut cmd = Command::new(&cfg.gui_path);
+        cmd.arg("--daemon")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null());
+        if let Ok(file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/tmp/mimoauth-gui.log")
+        {
+            cmd.stderr(std::process::Stdio::from(file));
+        } else {
+            cmd.stderr(std::process::Stdio::null());
+        }
+        match cmd.spawn() {
+            Ok(mut child) => {
+                info!("persistent auth agent spawned");
+                tokio::spawn(async move {
+                    let _ = child.wait().await;
+                });
+            }
+            Err(e) => warn!("no persistent agent ({e}); dialogs will cold-start"),
+        }
+    }
+
     let own_uid = unsafe { libc::geteuid() };
     let state = Arc::new(Mutex::new(State {
         cache: AuthCache::new(),

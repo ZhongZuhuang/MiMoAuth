@@ -20,6 +20,15 @@
 - **会话集成**：systemd user service 随图形会话自动启停（重启/重登零操作）；Wayland 环境变量丢失时自动探测 socket 兜底
 - **安全**：请求绑定发起进程身份（D-Bus 凭据校验）；密码只进 PAM 不落盘；同 uid 信任域内校验
 
+## 界面
+
+| MiMo 提权（指纹优先） | 用户 sudo 提权 |
+|:---:|:---:|
+| ![MiMo 提权弹窗](docs/screenshots/auth-mimo.png) | ![用户提权弹窗](docs/screenshots/auth-user.png) |
+
+三类来源（MiMo / AI Agent / 用户终端）使用不同图标与文案；有指纹设备时默认进入指纹模式，`fingerprint_timeout_secs`（默认 10s）未识别后回落密码输入框。
+弹窗由**常驻认证代理**提供（`RegisterAgent` → `Show` 热路径），实测热弹窗延迟约 **12ms**（冷启动约 230ms）。
+
 ## 架构
 
 ```mermaid

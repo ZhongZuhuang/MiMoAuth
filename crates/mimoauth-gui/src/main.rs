@@ -108,6 +108,19 @@ fn strings() -> Strings {
     }
 }
 
+
+/// Persistent-agent endpoint: daemon calls Show(auth_id) instead of spawning us.
+struct AgentService {
+    tx: async_channel::Sender<String>,
+}
+
+#[zbus::interface(name = "org.mimoauth.Agent1")]
+impl AgentService {
+    async fn show(&self, auth_id: &str) {
+        let _ = self.tx.send_blocking(auth_id.to_string());
+    }
+}
+
 fn parse_auth_id() -> Option<String> {
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -122,10 +135,20 @@ fn parse_auth_id() -> Option<String> {
 }
 
 fn main() {
+    // Persistent agent mode: register org.mimoauth.Agent1 and show dialogs on
+    // demand — no GTK cold start per request.
+    if std::env::args().any(|a| a == "--daemon") {
+        if let Err(e) = run_daemon_agent() {
+            eprintln!("mimoauth-gui daemon: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     let auth_id = match parse_auth_id() {
         Some(id) => id,
         None => {
-            eprintln!("usage: mimoauth-gui --auth-id <id>");
+            eprintln!("usage: mimoauth-gui --auth-id <id> | mimoauth-gui --daemon");
             std::process::exit(2);
         }
     };
@@ -401,6 +424,103 @@ fn field(parent: &GtkBox, caption: &str, value: &str) {
     val.set_wrap(true);
     val.set_wrap_mode(gtk4::pango::WrapMode::Word);
     parent.append(&val);
+}
+
+
+fn run_daemon_agent() -> Result<(), String> {
+    let (tx, rx) = async_channel::unbounded::<String>();
+
+    // zbus object-server needs a Tokio reactor — run it on its own thread.
+    std::thread::spawn(move || {
+        let rt = match tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        {
+            Ok(rt) => rt,
+            Err(e) => {
+                eprintln!("daemon-agent: runtime: {e}");
+                return;
+            }
+        };
+        rt.block_on(async move {
+            let conn = match zbus::Connection::session().await {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("daemon-agent: session bus: {e}");
+                    return;
+                }
+            };
+            if let Err(e) = conn.request_name("org.mimoauth.Agent1").await {
+                eprintln!("daemon-agent: request_name: {e}");
+                return;
+            }
+            if let Err(e) = conn
+                .object_server()
+                .at("/org/mimoauth/Agent1", AgentService { tx })
+                .await
+            {
+                eprintln!("daemon-agent: serve: {e}");
+                return;
+            }
+            match mimoauth_common::dbus::Auth1Proxy::new(&conn).await {
+                Ok(p) => match p.register_agent("org.mimoauth.Agent1").await {
+                    Ok(_) => eprintln!("mimoauth-gui daemon: registered as org.mimoauth.Agent1"),
+                    Err(e) => eprintln!("daemon-agent: register_agent: {e}"),
+                },
+                Err(e) => eprintln!("daemon-agent: proxy: {e}"),
+            }
+            std::future::pending::<()>().await;
+        });
+    });
+
+    let conn = zbus::blocking::Connection::session().map_err(|e| e.to_string())?;
+    let s = Rc::new(strings());
+    let app = AdwApplication::builder()
+        .application_id("org.mimoauth.AuthGui")
+        .build();
+    let conn2 = conn.clone();
+    let rx_slot = Rc::new(RefCell::new(Some(rx)));
+    app.connect_activate(move |app| {
+        let Some(rx) = rx_slot.borrow_mut().take() else {
+            return;
+        };
+        let conn3 = conn2.clone();
+        let s = s.clone();
+        let app = app.clone();
+        // Show() calls arrive here; build a dialog per request.
+        glib::spawn_future_local(async move {
+            while let Ok(auth_id) = rx.recv().await {
+                let proxy = match Auth1ProxyBlocking::new(&conn3) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        eprintln!("daemon-agent: proxy: {e}");
+                        continue;
+                    }
+                };
+                let (description, command, source, remaining_ms) =
+                    match proxy.get_pending_request(&auth_id) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            eprintln!("daemon-agent: pending {auth_id}: {e}");
+                            continue;
+                        }
+                    };
+                let win = build_window(
+                    &app,
+                    conn3.clone(),
+                    &auth_id,
+                    &description,
+                    &command,
+                    &source,
+                    remaining_ms,
+                    s.clone(),
+                );
+                win.present();
+            }
+        });
+    });
+    app.run_with_args::<&str>(&[]);
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
